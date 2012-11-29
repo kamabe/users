@@ -21,13 +21,13 @@
 # Searches data bag "users" for groups attribute "sysadmin".
 # Places returned users in Unix group "sysadmin" with GID 2300.
 node[:users][:groups].each do |group|
-  users_manage group[:name] do
-    group_id     group[:id]
-    data_bag     group[:data_bag]     if group.key?(:data_bag)
-    search_group group[:search_group] if group.key?(:search_group)
-    group_name   group[:group_name]   if group.key?(:group_name)
-    group_id     group[:group_id]
-    cookbook     group[:cookbook]     if group.key?(:cookbook)
+  users_manage node[:users][group.to_sym][:name] do
+    group_id     node[:users][group.to_sym][:id]
+    data_bag     node[:users][group.to_sym][:data_bag]     if node[:users][group.to_sym].key?(:data_bag)
+    search_group node[:users][group.to_sym][:search_group] if node[:users][group.to_sym].key?(:search_group)
+    group_name   node[:users][group.to_sym][:group_name]   if node[:users][group.to_sym].key?(:group_name)
+    group_id     node[:users][group.to_sym][:group_id]
+    cookbook     node[:users][group.to_sym][:cookbook]     if node[:users][group.to_sym].key?(:cookbook)
     action       [ :remove, :create ]
   end
 end
