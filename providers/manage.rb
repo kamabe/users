@@ -18,6 +18,13 @@
 # limitations under the License.
 #
 
+# This provider uses the "subresources" notifier pattern defined here:	
+#
+# https://gist.github.com/d85be145f3ff824ccc07
+# http://realityforge.org/code/2012/07/17/lwrp-notify-on-changed-resources.html
+
+include ChefExt::RecipeEval
+
 def whyrun_supported?
   true
 end
@@ -28,93 +35,95 @@ def initialize(*args)
 end
 
 action :remove do
-  if Chef::Config[:solo]
-    Chef::Log.warn("This recipe uses search. Chef Solo does not support search.")
-  else
-    search(new_resource.data_bag, "groups:#{new_resource.search_group} AND action:remove") do |rm_user|
-      user rm_user['username'] ||= rm_user['id'] do
-        action :remove
+  recipe_eval do
+    if Chef::Config[:solo]
+      Chef::Log.warn("This recipe uses search. Chef Solo does not support search.")
+    else
+      search(new_resource.data_bag, "groups:#{new_resource.search_group} AND action:remove") do |rm_user|
+        user rm_user['username'] ||= rm_user['id'] do
+          action :remove
+        end
       end
     end
-    new_resource.updated_by_last_action(true)
   end
 end
 
 action :create do
-  security_group = Array.new
+  recipe_eval do
+    security_group = Array.new
 
-  if Chef::Config[:solo]
-    Chef::Log.warn("This recipe uses search. Chef Solo does not support search.")
-  else
-    search(new_resource.data_bag, "groups:#{new_resource.search_group} AND NOT action:remove") do |u|
-      u['username'] ||= u['id']
-      security_group << u['username']
+    if Chef::Config[:solo]
+      Chef::Log.warn("This recipe uses search. Chef Solo does not support search.")
+    else
+      search(new_resource.data_bag, "groups:#{new_resource.search_group} AND NOT action:remove") do |u|
+        u['username'] ||= u['id']
+        security_group << u['username']
 
-      if node['apache'] and node['apache']['allowed_openids']
-        Array(u['openid']).compact.each do |oid|
-          node['apache']['allowed_openids'] << oid unless node['apache']['allowed_openids'].include?(oid)
+        if node['apache'] and node['apache']['allowed_openids']
+          Array(u['openid']).compact.each do |oid|
+            node['apache']['allowed_openids'] << oid unless node['apache']['allowed_openids'].include?(oid)
+          end
         end
-      end
 
-      # Set home to location in data bag,
-      # or a reasonable default (/home/$user).
-      if u['home']
-        home_dir = u['home']
-      else
-        home_dir = "/home/#{u['username']}"
-      end
-
-      # The user block will fail if the group does not yet exist.
-      # See the -g option limitations in man 8 useradd for an explanation.
-      # This should correct that without breaking functionality.
-      if u['gid'] and u['gid'].kind_of?(Numeric)
-        group u['username'] do
-          gid u['gid']
-        end
-      end
-
-      # Create user object.
-      # Do NOT try to manage null home directories.
-      user u['username'] do
-        uid u['uid']
-        if u['gid']
-          gid u['gid']
-        end
-        shell u['shell']
-        comment u['comment']
-        password u['password'] if u['password']
-        if home_dir == "/dev/null"
-          supports :manage_home => false
+        # Set home to location in data bag,
+        # or a reasonable default (/home/$user).
+        if u['home']
+          home_dir = u['home']
         else
-          supports :manage_home => true
-        end
-        home home_dir
-      end
-
-      if home_dir != "/dev/null"
-        directory "#{home_dir}/.ssh" do
-          owner u['username']
-          group u['gid'] || u['username']
-          mode "0700"
+          home_dir = "/home/#{u['username']}"
         end
 
-        if u['ssh_keys']
-          template "#{home_dir}/.ssh/authorized_keys" do
-            source "authorized_keys.erb"
-            cookbook new_resource.cookbook
+        # The user block will fail if the group does not yet exist.
+        # See the -g option limitations in man 8 useradd for an explanation.
+        # This should correct that without breaking functionality.
+        if u['gid'] and u['gid'].kind_of?(Numeric)
+          group u['username'] do
+            gid u['gid']
+          end
+        end
+
+        # Create user object.
+        # Do NOT try to manage null home directories.
+        user u['username'] do
+          uid u['uid']
+          if u['gid']
+            gid u['gid']
+          end
+          shell u['shell']
+          comment u['comment']
+          password u['password'] if u['password']
+          if home_dir == "/dev/null"
+            supports :manage_home => false
+          else
+            supports :manage_home => true
+          end
+          home home_dir
+        end
+
+        if home_dir != "/dev/null"
+          directory "#{home_dir}/.ssh" do
             owner u['username']
             group u['gid'] || u['username']
-            mode "0600"
-            variables :ssh_keys => u['ssh_keys']
+            mode "0700"
+          end
+
+          if u['ssh_keys']
+            template "#{home_dir}/.ssh/authorized_keys" do
+              source "authorized_keys.erb"
+              cookbook new_resource.cookbook
+              owner u['username']
+              group u['gid'] || u['username']
+              mode "0600"
+              variables :ssh_keys => u['ssh_keys']
+            end
           end
         end
       end
     end
-    new_resource.updated_by_last_action(true)
-  end
 
-  group new_resource.group_name do
-    gid new_resource.group_id
-    members security_group
+    group new_resource.group_name do
+      gid new_resource.group_id
+      members security_group
+    end
   end
 end
