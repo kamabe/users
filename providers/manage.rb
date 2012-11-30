@@ -110,11 +110,11 @@ action :create do
         end
       end
     end
+    new_resource.updated_by_last_action(true)
   end
 
   group new_resource.group_name do
     gid new_resource.group_id
     members security_group
   end
-  new_resource.updated_by_last_action(true)
 end
