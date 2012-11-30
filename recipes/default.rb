@@ -1,6 +1,6 @@
 #
 # Cookbook Name:: users
-# Recipe:: sysadmins
+# Recipe:: default
 #
 # Copyright 2011, Eric G. Wolfe
 # Copyright 2009-2011, Opscode, Inc.
@@ -18,8 +18,7 @@
 # limitations under the License.
 #
 
-# Searches data bag "users" for groups attribute "sysadmin".
-# Places returned users in Unix group "sysadmin" with GID 2300.
+# Searches data bag "users" for groups attribute.
 node[:users][:groups].each do |group|
   users_manage group do
     data_bag     node[:users][group][:data_bag]     if node[:users][group] && node[:users][group].key?(:data_bag)
