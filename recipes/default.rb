@@ -17,7 +17,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Searches data bag "users" for groups attribute.
+# Loops through list of groups and adds users from the specified databag to the group.
 node[:users][:groups].each do |group|
   users_manage group do
     data_bag     node[:users][group][:data_bag]     if node[:users][group] && node[:users][group].key?(:data_bag)
