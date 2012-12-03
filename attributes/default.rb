@@ -1,2 +1,2 @@
-default[:users][:groups]                = [ "sysadmin" ]
-default[:users]["sysadmins"][:group_id] = 2300
+default[:users][:groups]               = [ "sysadmin" ]
+default[:users]["sysadmin"][:group_id] = 2300
