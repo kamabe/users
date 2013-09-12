@@ -123,7 +123,7 @@ action :create do
 
     group new_resource.group_name do
       gid new_resource.group_id
-      members security_group
+      members security_group.sort
     end
   end
 end
